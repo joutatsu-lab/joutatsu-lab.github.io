@@ -1,0 +1,15 @@
+{
+  "name": "練習コンパニオン",
+  "short_name": "練習コンパニオン",
+  "description": "練習の気づきを「試す→検証→定着」で回す、楽器練習のためのPDCAコンパニオン",
+  "lang": "ja",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#d8cab0",
+  "theme_color": "#d8cab0",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

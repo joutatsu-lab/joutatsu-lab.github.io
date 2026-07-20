@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="練習の気づきを「試す→検証→定着」で回す、楽器練習のためのPDCAコンパニオン。データはあなたの端末の中にだけ保存されます。">
+  <meta name="theme-color" content="#d8cab0">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <title>🎺 練習コンパニオン</title>
+  <style>
+    /* ===== テーマ変数（A:温かいダーク / B:クリーム） ===== */
+    body.theme-dark {
+      --bg: #16130f; --surface: #221c15; --surface2: #1b1611;
+      --text: #ece4d8; --dim: #b3a797; --faint: #6f6457;
+      --border: #352c22; --shadow: 0 2px 14px rgba(0,0,0,.35);
+      --c-blue:#6cb3e8; --c-green:#8fce86; --c-amber:#e2a63f; --c-purple:#bd9fe6; --c-red:#e89a8a; --c-gray:#9a8f80;
+    }
+    body.theme-light {
+      --bg: #d8cab0; --surface: #e6d9bf; --surface2: #d0c1a1;
+      --text: #362e24; --dim: #5f5546; --faint: #8a7b63;
+      --border: #c0b08c; --shadow: 0 2px 14px rgba(110,90,50,.16);
+      --c-blue:#3a7fbb; --c-green:#558f4d; --c-amber:#b67c26; --c-purple:#7e64ad; --c-red:#bd6953; --c-gray:#857b6b;
+    }
+    /* 色からtint(背景)とborderを自動生成 */
+    .tint   { background: color-mix(in srgb, var(--ac) 16%, var(--surface)); }
+
+    /* ===== 紙・クラフトの質感（クリームのみ）：SVGの微細グレインを全面に重ねる ===== */
+    body.theme-light::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 9999;
+      mix-blend-mode: multiply; opacity: 0.62;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    /* カードは紙を1枚置いた風に、上端のかすかなハイライトで厚みを出す */
+    body.theme-light .section,
+    body.theme-light #card,
+    body.theme-light .suggest-card,
+    body.theme-light .pending-item,
+    body.theme-light .active-item {
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,250,235,.5);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { overflow-x: hidden; }  /* めくりアニメ中の横はみ出しでスクロールバーが出るのを防ぐ */
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.4rem 1rem 6rem; gap: 1.1rem;
+      transition: background .25s, color .25s;
+      position: relative;  /* グレイン層(::before)の基準。本文と一緒にスクロールさせる */
+    }
+
+    .topbar {
+      max-width: 640px; width: 100%;
+      display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+    }
+    h1 { font-size: 1.35rem; letter-spacing: 0.03em; font-weight: 700; }
+    .theme-toggle {
+      background: color-mix(in srgb, var(--c-amber) 14%, var(--surface));
+      color: var(--c-amber);
+      border: 1px solid color-mix(in srgb, var(--c-amber) 38%, var(--surface));
+      border-radius: 999px; padding: 0.45rem 0.9rem; font-size: 0.8rem; white-space: nowrap;
+    }
+
+    .section {
+      background: var(--surface); border-radius: 18px; padding: 1.5rem;
+      max-width: 640px; width: 100%; display: flex; flex-direction: column; gap: 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .section-label { font-size: 0.92rem; letter-spacing: 0.02em; font-weight: 700; }
+    .section-hint { font-size: 0.8rem; color: var(--faint); }
+
+    .label-blue  { color: var(--c-blue); }
+    .label-green { color: var(--c-green); }
+    .label-amber { color: var(--c-amber); }
+    .label-gray  { color: var(--c-gray); }
+    .label-purple{ color: var(--c-purple); }
+
+    .border-blue  { border-top: 3px solid color-mix(in srgb, var(--c-blue)   55%, var(--surface)); }
+    .border-green { border-top: 3px solid color-mix(in srgb, var(--c-green)  55%, var(--surface)); }
+    .border-amber { border-top: 3px solid color-mix(in srgb, var(--c-amber)  55%, var(--surface)); }
+    .border-gray  { border-top: 3px solid color-mix(in srgb, var(--c-gray)   45%, var(--surface)); }
+    .border-purple{ border-top: 3px solid color-mix(in srgb, var(--c-purple) 55%, var(--surface)); }
+
+    #card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+      padding: 1.7rem; max-width: 640px; width: 100%; min-height: 160px;
+      display: flex; flex-direction: column; gap: 0.8rem; box-shadow: var(--shadow);
+    }
+    #card.empty { justify-content: center; align-items: center; opacity: 0.45; font-size: 0.95rem; }
+
+    .card-date { font-size: 0.72rem; color: var(--faint); }
+    .card-title { font-size: 1.15rem; font-weight: 700; line-height: 1.5; color: var(--text); }
+    .card-status {
+      display: inline-block; font-size: 0.8rem; padding: 0.25rem 0.75rem;
+      border-radius: 999px; width: fit-content;
+      background: color-mix(in srgb, var(--c-amber) 16%, var(--surface));
+      color: var(--c-amber);
+      border: 1px solid color-mix(in srgb, var(--c-amber) 30%, var(--surface));
+    }
+    .card-body {
+      font-size: 0.92rem; line-height: 1.85; color: var(--dim); white-space: pre-wrap;
+      border-top: 1px solid var(--border); padding-top: 0.9rem;
+    }
+
+    .actions { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+
+    button {
+      border: none; border-radius: 12px; padding: 0.7rem 1.2rem;
+      font-size: 0.92rem; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: transform .08s, filter .15s, opacity .15s;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .feedback { font-size: 0.82rem; color: var(--dim); min-height: 1.2rem; text-align: center; }
+
+    input[type="text"], textarea, select, .memo-input {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.6rem 0.8rem; color: var(--text); font-size: 0.95rem;
+      font-family: inherit; outline: none; width: 100%;
+    }
+    input:focus, textarea:focus, select:focus, .memo-input:focus {
+      border-color: color-mix(in srgb, var(--c-amber) 55%, var(--surface));
+    }
+    textarea { resize: vertical; line-height: 1.6; }
+    label.field-label { font-size: 0.8rem; color: var(--faint); }
+    .field { display: flex; flex-direction: column; gap: 0.4rem; }
+
+    .suggest-card, .pending-item, .active-item {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem;
+    }
+    .suggest-card-title { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+    .item-body, .suggest-card-body {
+      font-size: 0.86rem; line-height: 1.6; color: var(--dim); white-space: pre-wrap;
+    }
+    .item-title { font-size: 0.98rem; font-weight: 600; color: var(--text); line-height: 1.5; }
+    .item-date { font-size: 0.7rem; color: var(--faint); }
+    .memo-input { font-size: 0.9rem; }
+
+    /* ボタン：色アクセント＋tint背景＋淡いボーダーを color-mix で自動生成 */
+    .btn-nav    { --ac: var(--c-gray); }
+    .btn-random { --ac: var(--c-amber); }
+    .btn-edit   { --ac: var(--c-blue); }
+    .btn-delete { --ac: var(--c-red); }
+    .btn-hold   { --ac: var(--c-purple); }
+    .btn-today  { --ac: var(--c-blue); }
+    .btn-valid  { --ac: var(--c-green); }
+    .btn-deny   { --ac: var(--c-red); }
+    .btn-suggest{ --ac: var(--c-green); }
+    .btn-save   { --ac: var(--c-amber); }
+    .btn-log    { --ac: var(--c-blue); }
+    .btn-cancel { --ac: var(--c-gray); }
+    .btn-dismiss{ --ac: var(--c-red); }
+    .btn-nav, .btn-random, .btn-edit, .btn-delete, .btn-hold, .btn-today,
+    .btn-valid, .btn-deny, .btn-suggest, .btn-save, .btn-log, .btn-cancel, .btn-dismiss {
+      color: var(--ac);
+      background: color-mix(in srgb, var(--ac) 15%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--ac) 34%, var(--surface));
+    }
+
+    .empty-note { font-size: 0.84rem; color: var(--faint); text-align: center; padding: 0.5rem; }
+
+    /* ===== 演出（ページめくり風・お祝い） ===== */
+    #tab-know { perspective: 1200px; }   /* rotateYを3D横ページめくりに見せる奥行き */
+    @keyframes flipnext {  /* 次へ(→)：右から開いて入る */
+      from { opacity: 0; transform: translateX(32px) rotateY(-20deg); }
+      55%  { opacity: 1; }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes flipprev {  /* 前へ(←)：左から開いて入る */
+      from { opacity: 0; transform: translateX(-32px) rotateY(20deg); }
+      55%  { opacity: 1; }
+      to   { opacity: 1; transform: none; }
+    }
+    #card.flip-next { animation: flipnext .42s ease-out; transform-origin: left center; }
+    #card.flip-prev { animation: flipprev .42s ease-out; transform-origin: right center; }
+    @media (prefers-reduced-motion: reduce) {
+      #card.flip-next, #card.flip-prev { animation: none; }
+    }
+
+    /* ===== 「今日」ホームのヒーロー ===== */
+    .hero {
+      width: 100%; background: var(--surface); border-radius: 18px; padding: 1.5rem 1.4rem;
+      box-shadow: var(--shadow); text-align: center;
+      display: flex; flex-direction: column; gap: 0.55rem; align-items: center;
+      border-top: 3px solid color-mix(in srgb, var(--c-amber) 55%, var(--surface));
+    }
+    .hero-title { font-size: 1.2rem; font-weight: 800; color: var(--text); }
+    .hero-sub { font-size: 0.85rem; color: var(--dim); }
+    .btn-cta {
+      background: var(--c-amber); color: #fff; border: none;
+      padding: 0.8rem 1.4rem; border-radius: 12px; font-weight: 700; margin-top: 0.4rem;
+    }
+
+    /* ===== タブ（モード切替） ===== */
+    .tab-panel { width: 100%; max-width: 640px; display: none; flex-direction: column; gap: 1.1rem; }
+    .tab-panel.active { display: flex; }
+
+    .tabbar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 10000;
+      display: flex; background: var(--surface); border-top: 1px solid var(--border);
+      box-shadow: 0 -3px 16px rgba(60,45,20,.18);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .tabbar button {
+      flex: 1; background: transparent; border: none; border-radius: 0;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 0.55rem 0 0.5rem; font-size: 1.25rem; color: var(--faint);
+      transition: color .15s;
+    }
+    .tabbar button span { font-size: 0.64rem; font-weight: 700; letter-spacing: .02em; }
+    .tabbar button.on { color: var(--c-amber); }
+    .tabbar button.on::after {
+      content: ""; position: absolute; bottom: 0; width: 34%; height: 3px;
+      border-radius: 3px 3px 0 0; background: var(--c-amber);
+    }
+    .tabbar button { position: relative; }
+
+    .privacy-note {
+      max-width: 640px; width: 100%; text-align: center;
+      font-size: 0.72rem; color: var(--faint); line-height: 1.7;
+    }
+
+    /* ===== 広い画面：下部固定をやめ、コンテンツ上部のタブ列にする ===== */
+    @media (min-width: 720px) {
+      body { padding-bottom: 2.5rem; }
+      .topbar    { order: 1; }
+      .tabbar    { order: 2; }
+      .tab-panel { order: 3; }
+      .privacy-note { order: 4; }
+      .tabbar {
+        position: static; width: 100%; max-width: 640px; margin: 0 auto;
+        border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      .tabbar button {
+        flex-direction: row; gap: 7px; font-size: 1.05rem; padding: 0.7rem 0.5rem;
+      }
+      .tabbar button span { font-size: 0.85rem; }
+      .tabbar button.on::after { display: none; }
+      .tabbar button.on { background: color-mix(in srgb, var(--c-amber) 14%, var(--surface)); }
+      .tabbar button + button { border-left: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body class="theme-light">
+  <div class="topbar">
+    <h1>🎺 練習コンパニオン</h1>
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-toggle-btn">テーマ切替</button>
+  </div>
+
+  <!-- ========== 🎺 今日タブ：練習前/中/後がここで完結 ========== -->
+  <div class="tab-panel" id="tab-today">
+
+  <!-- 状態に応じた主役ヒーロー（未選択なら誘導／選択済みなら見出し） -->
+  <div id="today-hero" class="hero"></div>
+
+  <!-- 練習前：今日のコンディション（心身の入力＝練習の出来とは切り離す） -->
+  <div class="section border-gray">
+    <div class="section-label label-gray">🌅 練習前のコンディション</div>
+    <div class="section-hint">吹き始める前の心身の状態（睡眠・疲れ・唇の張り）。練習の出来とは別に。</div>
+    <div class="field">
+      <div style="display:flex;gap:0.6rem;">
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;color:var(--dim);cursor:pointer;">
+          <input type="radio" name="condition" value="良い" style="accent-color:var(--c-blue);"> 良い
+        </label>
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;color:var(--dim);cursor:pointer;">
+          <input type="radio" name="condition" value="普通" checked style="accent-color:var(--c-blue);"> 普通
+        </label>
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;color:var(--dim);cursor:pointer;">
+          <input type="radio" name="condition" value="悪い" style="accent-color:var(--c-blue);"> 悪い
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 今日試す（🔄）：練習前に確認・練習後に結果記録 -->
+  <div class="section border-blue" id="today-active-section">
+    <div class="section-label label-blue">🔄 今日試す仮説（最大2個）</div>
+    <div class="section-hint">練習前に確認。練習後は結果を記録してください。</div>
+    <div id="active-list" style="display:flex;flex-direction:column;gap:0.6rem;"></div>
+    <p id="active-feedback" class="feedback"></p>
+  </div>
+
+  <!-- 練習後ログ -->
+  <div class="section border-gray">
+    <div class="section-label label-gray">📝 練習後ログ</div>
+    <div class="field">
+      <label class="field-label">今日の練習の手応え</label>
+      <div class="section-hint" style="margin:0 0 0.4rem;">練習全体の充実度・うまくいった感覚。体調の良し悪しとは別に。</div>
+      <div style="display:flex;gap:0.6rem;">
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;color:var(--dim);cursor:pointer;">
+          <input type="radio" name="response" value="良い" style="accent-color:var(--c-blue);"> 良い
+        </label>
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;color:var(--dim);cursor:pointer;">
+          <input type="radio" name="response" value="普通" checked style="accent-color:var(--c-blue);"> 普通
+        </label>
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;color:var(--dim);cursor:pointer;">
+          <input type="radio" name="response" value="悪い" style="accent-color:var(--c-blue);"> 悪い
+        </label>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">うまくいったこと</label>
+      <textarea id="log-well" rows="3" placeholder="例：低音域のタンギングが安定した"></textarea>
+    </div>
+    <div class="field">
+      <label class="field-label">次回試したいこと（保存すると📌試したいに自動で追加されます）</label>
+      <textarea id="log-next" rows="3" placeholder="例：息のスピードを意識して中音域を練習する"></textarea>
+    </div>
+    <button class="btn-log" onclick="saveLog()">練習ログを保存する</button>
+    <p id="log-feedback" class="feedback"></p>
+  </div>
+
+  </div><!-- /tab-today -->
+
+  <!-- ========== 📌 ためすタブ：試したいリスト＋気づき追加 ========== -->
+  <div class="tab-panel" id="tab-try">
+
+  <!-- 試したいリスト（📌） -->
+  <div class="section border-purple">
+    <div class="section-label label-purple">📌 試したいリスト</div>
+    <div class="section-hint">練習前に「今日試す」を1〜2個選んでください。</div>
+    <div id="pending-list" style="display:flex;flex-direction:column;gap:0.6rem;">
+      <div class="empty-note">読み込み中…</div>
+    </div>
+  </div>
+
+  <!-- 新しい気づきを追加（必ず📌試したいに入ります） -->
+  <div class="section border-amber">
+    <div class="section-label label-amber">💡 新しい気づきを追加</div>
+    <div class="section-hint">保存すると「📌試したいリスト」に入ります。</div>
+    <div class="field">
+      <label class="field-label">タイトル</label>
+      <input id="add-title" type="text" placeholder="例：ロングトーンの前に軽くリップスラーを入れると音の立ち上がりが良い">
+    </div>
+    <div class="field">
+      <label class="field-label">内容・根拠・試し方</label>
+      <textarea id="add-body" rows="4" placeholder="どんな状況で気づいたか、なぜそう思うか、具体的にどう試すか"></textarea>
+    </div>
+    <button class="btn-save" onclick="addDiscoveryUI()">気づきを保存する</button>
+    <p id="add-feedback" class="feedback"></p>
+  </div>
+
+  </div><!-- /tab-try -->
+
+  <!-- ========== 📚 知識タブ：全発見の閲覧・編集・削除＋バックアップ ========== -->
+  <div class="tab-panel" id="tab-know">
+    <div class="section-label label-gray">📚 知識ベース（見返す・直す）</div>
+    <div class="actions">
+      <button class="btn-nav" onclick="loadPrev()">← 前</button>
+      <button class="btn-random" onclick="loadRandom()">🎲 ランダム</button>
+      <button class="btn-nav" onclick="loadNext()">次 →</button>
+    </div>
+    <p id="position" style="font-size:0.75rem;color:var(--faint);text-align:right;"></p>
+    <div id="card" class="empty">
+      <span>ボタンを押して発見を読み込む</span>
+    </div>
+    <p id="card-feedback" class="feedback"></p>
+
+    <!-- バックアップ：データは端末内のみのため、書き出しが唯一の控え -->
+    <div class="section border-gray" style="margin-top:0.4rem;">
+      <div class="section-label label-gray">💾 バックアップ</div>
+      <div class="section-hint">データはこの端末のブラウザ内にだけ保存されます。機種変更やブラウザの掃除で消えることがあるので、ときどき書き出して控えを残してください。</div>
+      <div class="actions">
+        <button class="btn-save" style="flex:1;" onclick="exportBackup()">⬇️ 書き出す（JSON）</button>
+        <label class="btn-nav" style="flex:1;text-align:center;cursor:pointer;">
+          ⬆️ 読み込む<input type="file" accept="application/json,.json" style="display:none;" onchange="importBackup(this)">
+        </label>
+      </div>
+      <p id="backup-feedback" class="feedback"></p>
+    </div>
+  </div><!-- /tab-know -->
+
+  <!-- ========== 下部タブバー ========== -->
+  <nav class="tabbar">
+    <button onclick="switchTab('today')" data-tabbtn="today">🎺<span>今日</span></button>
+    <button onclick="switchTab('try')"   data-tabbtn="try">📌<span>ためす</span></button>
+    <button onclick="switchTab('know')"  data-tabbtn="know">📚<span>知識</span></button>
+  </nav>
+
+  <p class="privacy-note">
+    🔒 練習データはあなたのブラウザの中にだけ保存されます。サーバーには何も送信されません。
+  </p>
+
+  <script src="./ui-core.js"></script>
+  <script src="./core.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
