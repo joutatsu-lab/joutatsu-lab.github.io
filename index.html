@@ -202,6 +202,28 @@
       padding: 0.8rem 1.4rem; border-radius: 12px; font-weight: 700; margin-top: 0.4rem;
     }
 
+    /* ===== 初回導入（データが空のときだけ表示） ===== */
+    .intro {
+      position: relative; width: 100%;
+      background: var(--surface); border-radius: 18px; padding: 1.5rem 1.4rem;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column; gap: 0.7rem;
+      border-top: 3px solid color-mix(in srgb, var(--c-amber) 55%, var(--surface));
+    }
+    .intro-title { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+    .intro-lead { font-size: 0.9rem; line-height: 1.75; color: var(--dim); }
+    .intro-steps {
+      margin: 0.1rem 0 0.1rem 1.15rem; display: flex; flex-direction: column; gap: 0.4rem;
+      font-size: 0.88rem; line-height: 1.6; color: var(--dim);
+    }
+    .intro-steps b { color: var(--c-amber); }
+    .intro-hint { font-size: 0.8rem; color: var(--faint); line-height: 1.7; }
+    .intro-close {
+      position: absolute; top: 0.6rem; right: 0.7rem;
+      background: transparent; border: none; color: var(--faint);
+      font-size: 1.3rem; line-height: 1; padding: 0.15rem 0.4rem; cursor: pointer;
+    }
+
     /* ===== タブ（モード切替） ===== */
     .tab-panel { width: 100%; max-width: 640px; display: none; flex-direction: column; gap: 1.1rem; }
     .tab-panel.active { display: flex; }
@@ -261,6 +283,20 @@
 
   <!-- ========== 🎺 今日タブ：練習前/中/後がここで完結 ========== -->
   <div class="tab-panel" id="tab-today">
+
+  <!-- 初回導入：発見・ログが1件もないときだけ表示（閉じたら記憶） -->
+  <div id="firstrun" class="intro" style="display:none;">
+    <button class="intro-close" onclick="dismissIntro()" aria-label="閉じる">×</button>
+    <div class="intro-title">🎺 はじめての方へ</div>
+    <div class="intro-lead">練習の「気づき」を、試して・確かめて・定着させるためのアプリです。あれこれ欲張らず、今日試すことを1〜2個だけ決めて、結果を記録していきます。</div>
+    <ol class="intro-steps">
+      <li><b>ためす</b>に、試したい練習の工夫を書く</li>
+      <li><b>今日</b>で1〜2個を選び、その日の練習で試す</li>
+      <li>練習後に結果を記録（✅定着／📌もう少し／❌ちがった）</li>
+    </ol>
+    <div class="intro-hint">検証をくぐった気づきは<b>知識</b>に貯まり、自分だけの奏法ノートになります。データはこの端末の中だけに保存され、サーバーには送信されません。</div>
+    <button class="btn-cta" onclick="switchTab('try')">📌 まず、試したいことを1つ書く</button>
+  </div>
 
   <!-- 状態に応じた主役ヒーロー（未選択なら誘導／選択済みなら見出し） -->
   <div id="today-hero" class="hero"></div>

@@ -120,6 +120,7 @@ function deleteCurrent() {
 
 // ── 試したいリスト（📌） ─────────────────────────────────
 function loadPending() {
+  updateFirstRun();
   const list = document.getElementById('pending-list');
   const pending = discoveries.filter((d) => d.status_emoji === '📌');
   if (pending.length === 0) {
@@ -208,6 +209,7 @@ function saveLog() {
   document.getElementById('log-well').value = '';
   document.getElementById('log-next').value = '';
   if (r.linked) { loadPending(); refreshDiscoveries(); }
+  updateFirstRun();  // ログのみ保存（次回試したいこと未記入）でも導入を隠す
 }
 
 // ── バックアップ（エクスポート／インポート） ───────────────
@@ -249,6 +251,24 @@ function updateTodayHero(count) {
   if (hero) hero.innerHTML = buildTodayHeroHTML(count);
   const sec = document.getElementById('today-active-section');
   if (sec) sec.style.display = count > 0 ? '' : 'none';
+  updateFirstRun();
+}
+
+// ── 初回導入：発見・ログが1件もない かつ 未クローズ のときだけ表示 ──
+function updateFirstRun() {
+  const el = document.getElementById('firstrun');
+  if (!el) return;
+  const empty = discoveries.length === 0 && practiceLogs.length === 0;
+  const dismissed = localStorage.getItem('tc-introdismissed') === '1';
+  const show = empty && !dismissed;
+  el.style.display = show ? '' : 'none';
+  // 導入表示中は、下の重複ヒーロー（同じ「ためすへ」誘導）を隠してCTAの重複を避ける
+  const hero = document.getElementById('today-hero');
+  if (hero) hero.style.display = show ? 'none' : '';
+}
+function dismissIntro() {
+  localStorage.setItem('tc-introdismissed', '1');
+  updateFirstRun();
 }
 
 // ── テーマ切替（A:温かいダーク ⇄ B:クリーム・選択を記憶） ──
