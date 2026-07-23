@@ -1,6 +1,6 @@
 {
-  "name": "練習コンパニオン",
-  "short_name": "練習コンパニオン",
+  "name": "今日の仮説",
+  "short_name": "今日の仮説",
   "description": "練習の気づきを「試す→検証→定着」で回す、楽器練習のためのPDCAコンパニオン",
   "lang": "ja",
   "start_url": ".",
